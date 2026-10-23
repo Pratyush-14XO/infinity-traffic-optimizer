@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Traffic Flow Optimizer — Interactive Simulation</title>
+<style>
+:root{--bg:#0b1220;--panel:#121d30;--line:#293850;--text:#edf4ff;--muted:#a9bad1;--cyan:#47d7e8;--green:#3bd68a;--yellow:#ffd166;--red:#ff6b75}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#09111e,#111d32);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+main{max-width:1120px;margin:auto;padding:22px}.top{display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap}.eyebrow{color:var(--cyan);font-weight:800;letter-spacing:.12em;font-size:12px;text-transform:uppercase}h1{margin:5px 0;font-size:clamp(25px,4vw,38px)}p{color:var(--muted);margin:5px 0 14px}.tag{border:1px solid #3d536f;border-radius:999px;padding:7px 12px;color:#c7d9ef;font-size:12px}
+.layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(270px,1fr);gap:16px;margin-top:18px}.panel{background:rgba(18,29,48,.95);border:1px solid var(--line);border-radius:16px;padding:15px;box-shadow:0 10px 30px #0002}.panel h2{font-size:17px;margin:0 0 10px}.canvas-wrap{width:100%;overflow:hidden;border-radius:12px;background:#182436}canvas{display:block;width:100%;height:auto}.controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}button,select{background:#1c2d46;color:var(--text);border:1px solid #405675;border-radius:9px;padding:10px 13px;font-weight:700;cursor:pointer}button.primary{background:#087f91;border-color:#17b4c5}button:hover{filter:brightness(1.15)}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:9px}.metric{background:#0d1727;border:1px solid #263a54;border-radius:12px;padding:11px}.metric span{display:block;color:var(--muted);font-size:12px}.metric strong{display:block;font-size:23px;margin-top:3px}.status{display:flex;align-items:center;gap:8px;margin:12px 0;padding:10px;border-radius:10px;background:#0d1727;color:#dce9f9}.dot{width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 12px currentColor}.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:12px;margin-top:10px}.swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}.small{font-size:12px;color:var(--muted)}.barrow{display:grid;grid-template-columns:78px 1fr 38px;gap:8px;align-items:center;margin:9px 0;font-size:12px}.bar{height:10px;border-radius:9px;background:#263950;overflow:hidden}.fill{height:100%;border-radius:9px;background:var(--cyan);width:0;transition:width .3s}.fill.smart{background:var(--green)}.section{margin-top:16px}.note{border-left:3px solid var(--yellow);padding:9px 12px;background:#201f1b;color:#e7dfc6;border-radius:0 8px 8px 0;font-size:13px}.footer{margin:18px 0 4px;text-align:center;color:#8295ae;font-size:12px}
+@media(max-width:780px){.layout{grid-template-columns:1fr}main{padding:13px}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div><div class="eyebrow">Grade 8 · Digital Prototype</div><h1>🚦 Traffic Flow Optimizer</h1><p>A four-way junction simulation comparing fixed-timer signals with demand-based green time.</p></div>
+    <div class="tag">SIMULATED DATA · NOT REAL ROAD DATA</div>
+  </div>
+  <div class="layout">
+    <section class="panel">
+      <h2>Live 4-way intersection</h2>
+      <div class="canvas-wrap"><canvas id="road" width="720" height="540" aria-label="Animated four-way traffic intersection"></canvas></div>
+      <div class="legend"><span><i class="swatch" style="background:#ffca6b"></i>North/South traffic</span><span><i class="swatch" style="background:#6eb8ff"></i>East/West traffic</span><span><i class="swatch" style="background:#3bd68a"></i>Green signal</span><span><i class="swatch" style="background:#ff6b75"></i>Red signal</span></div>
+      <div class="controls">
+        <button class="primary" id="runBtn">▶ Run simulation</button><button id="pauseBtn">Ⅱ Pause</button><button id="resetBtn">↻ Reset</button>
+        <label class="small" style="display:flex;align-items:center;gap:7px">Signal mode <select id="mode"><option value="smart">Smart / demand-based</option><option value="fixed">Fixed timer</option></select></label>
+      </div>
+      <div class="status"><i class="dot" id="dot"></i><span id="signalStatus">North–South green · smart timing</span></div>
+      <div class="small">Demo clock: <strong id="clock">0</strong> seconds · The simulation uses generated sample traffic, not live cameras.</div>
+    </section>
+    <aside class="panel">
+      <h2>Live performance</h2>
+      <div class="metrics">
+        <div class="metric"><span>Vehicles cleared</span><strong id="cleared">0</strong></div>
+        <div class="metric"><span>Waiting vehicles</span><strong id="waiting">24</strong></div>
+        <div class="metric"><span>Average wait (sim sec)</span><strong id="avgWait">0</strong></div>
+        <div class="metric"><span>Longest queue</span><strong id="longest">8</strong></div>
+      </div>
+      <div class="section"><h2>Traffic waiting by road</h2>
+        <div class="barrow"><span>North</span><div class="bar"><div class="fill" id="qN"></div></div><b id="nN">8</b></div>
+        <div class="barrow"><span>South</span><div class="bar"><div class="fill" id="qS"></div></div><b id="nS">6</b></div>
+        <div class="barrow"><span>East</span><div class="bar"><div class="fill" id="qE"></div></div><b id="nE">5</b></div>
+        <div class="barrow"><span>West</span><div class="bar"><div class="fill" id="qW"></div></div><b id="nW">5</b></div>
+      </div>
+      <div class="section"><h2>Current green time</h2>
+        <div class="barrow"><span>N–S</span><div class="bar"><div class="fill smart" id="gNS"></div></div><b id="gNSn">30s</b></div>
+        <div class="barrow"><span>E–W</span><div class="bar"><div class="fill smart" id="gEW"></div></div><b id="gEWn">30s</b></div>
+      </div>
+      <div class="section note"><b>How the smart rule works:</b> it estimates demand from queue counts, assigns more green time to the busier direction within safe limits, then uses a short yellow/clearance phase before switching.</div>
+    </aside>
+  </div>
+  <div class="layout section">
+    <section class="panel">
+      <h2>Fair comparison — same starting demand</h2>
+      <p class="small">Press “Run both tests” to compare both strategies using the same generated demand and a fixed test duration.</p>
+      <div class="controls"><button class="primary" id="compareBtn">Run both tests (120 sim seconds)</button></div>
+      <div id="compareStatus" class="small" style="margin-top:10px">No comparison run yet.</div>
+    </section>
+    <section class="panel">
+      <h2>Test results</h2>
+      <div class="metrics">
+        <div class="metric"><span>Fixed: vehicles cleared</span><strong id="fixedClear">—</strong></div>
+        <div class="metric"><span>Smart: vehicles cleared</span><strong id="smartClear">—</strong></div>
+        <div class="metric"><span>Fixed: average wait</span><strong id="fixedWait">—</strong></div>
+        <div class="metric"><span>Smart: average wait</span><strong id="smartWait">—</strong></div>
+      </div>
+      <p class="small" id="resultSummary" style="margin-top:10px">Results appear after the test. They are simulation outputs, not real-world guarantees.</p>
+    </section>
+  </div>
+  <div class="footer">School prototype · Traffic Flow Optimizer · Use results honestly and label all data as simulated.</div>
+</main>
+<script>
+const canvas=document.getElementById('road'),ctx=canvas.getContext('2d');
+const colors={ns:'#ffca6b',ew:'#6eb8ff'};
+let state, timer=null, last=0, accumulator=0;
+const $=id=>document.getElementById(id);
+function initial(){return {t:0,cleared:0,waitTotal:0,waitSamples:0,queues:{N:8,S:6,E:5,W:5},cars:[],phase:'NS',phaseTime:0,mode:$('mode').value,greenNS:30,greenEW:30,arrivals:0};}
+function reset(){state=initial();for(const d of ['N','S','E','W'])state.queues[d]=[8,6,5,5][['N','S','E','W'].indexOf(d)];$('clock').textContent='0';renderMetrics();draw();}
+function setMode(){state.mode=$('mode').value;updateStatus();}
+function smartGreen(){let ns=state.queues.N+state.queues.S,ew=state.queues.E+state.queues.W,total=ns+ew;state.greenNS=Math.max(15,Math.min(45,Math.round(60*(ns/(total||1)))));state.greenEW=60-state.greenNS;state.greenEW=Math.max(15,Math.min(45,state.greenEW));}
+function tick(){
+ state.t++;state.phaseTime++;
+ // A few arrivals each simulated second, with a repeatable rush-hour pattern.
+ if(state.t%2===0){const dirs=['N','S','E','W'];let d=dirs[Math.floor(Math.random()*4)];if(state.queues[d]<25)state.queues[d]++;state.arrivals++;}
+ if(state.mode==='smart' && state.phaseTime%8===0)smartGreen();
+ let duration=state.mode==='fixed'?30:(state.phase==='NS'?state.greenNS:state.greenEW);
+ if(state.phaseTime>=duration){state.phase=state.phase==='NS'?'EW':'NS';state.phaseTime=0;smartGreen();}
+ const open=state.phase==='NS'?['N','S']:['E','W'];
+ for(const d of open){if(state.queues[d]>0 && Math.random()<0.42){state.queues[d]--;state.cleared++;state.waitTotal+=Math.max(1,state.t/Math.max(1,state.cleared));state.waitSamples++;}}
+ // Count a queue-weighted waiting proxy each second.
+ state.waitTotal += state.queues.N+state.queues.S+state.queues.E+state.queues.W;
+ state.waitSamples++;
+ $('clock').textContent=state.t;
+ renderMetrics();draw();
+}
+function renderMetrics(){
+ const q=state.queues,total=q.N+q.S+q.E+q.W;
+ $('cleared').textContent=state.cleared;$('waiting').textContent=total;
+ $('avgWait').textContent=state.waitSamples?Math.round(state.waitTotal/state.waitSamples):0;
+ $('longest').textContent=Math.max(q.N,q.S,q.E,q.W);
+ for(const d of ['N','S','E','W']){$('n'+d).textContent=q[d];$('q'+d).style.width=Math.min(100,q[d]/25*100)+'%';}
+ $('gNS').style.width=state.greenNS/45*100+'%';$('gEW').style.width=state.greenEW/45*100+'%';$('gNSn').textContent=state.greenNS+'s';$('gEWn').textContent=state.greenEW+'s';
+ updateStatus();
+}
+function updateStatus(){const ns=state.phase==='NS';$('signalStatus').textContent=(ns?'North–South':'East–West')+' green · '+(state.mode==='smart'?'demand-based':'fixed timer');$('dot').style.background=ns?'#3bd68a':'#ff6b75';}
+function draw(){
+ const w=canvas.width,h=canvas.height,cx=w/2,cy=h/2;ctx.clearRect(0,0,w,h);ctx.fillStyle='#243b31';ctx.fillRect(0,0,w,h);
+ // road cross
+ ctx.fillStyle='#3d4857';ctx.fillRect(cx-112,0,224,h);ctx.fillRect(0,cy-112,w,224);
+ // road edges / lane markings
+ ctx.strokeStyle='#aab5c0';ctx.lineWidth=3;ctx.setLineDash([]);ctx.strokeRect(cx-112,0,224,h);ctx.strokeRect(0,cy-112,w,224);
+ ctx.strokeStyle='#d6dbe0';ctx.lineWidth=2;ctx.setLineDash([16,13]);ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,cy-112);ctx.moveTo(cx,cy+112);ctx.lineTo(cx,h);ctx.moveTo(0,cy);ctx.lineTo(cx-112,cy);ctx.moveTo(cx+112,cy);ctx.lineTo(w,cy);ctx.stroke();ctx.setLineDash([]);
+ // zebra crossings
+ for(let i=0;i<7;i++){ctx.fillStyle='#e4e8ed';ctx.fillRect(cx-100+i*29,cy-126,15,12);ctx.fillRect(cx-100+i*29,cy+114,15,12);ctx.fillRect(cx-126,cy-100+i*29,12,15);ctx.fillRect(cx+114,cy-100+i*29,12,15);}
+ // direction labels and queues
+ ctx.font='bold 16px system-ui';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText('NORTH',cx,25);ctx.fillText('SOUTH',cx,h-12);ctx.fillText('WEST',35,cy-125);ctx.fillText('EAST',w-35,cy-125);
+ // cars queued around each entry
+ const q=state.queues;
+ for(let i=0;i<Math.min(q.N,10);i++)car(cx-54,45+i*27,0,colors.ns);
+ for(let i=0;i<Math.min(q.S,10);i++)car(cx+20,h-45-i*27,0,colors.ns);
+ for(let i=0;i<Math.min(q.W,10);i++)car(45+i*27,cy-54,1,colors.ew);
+ for(let i=0;i<Math.min(q.E,10);i++)car(w-45-i*27,cy+20,1,colors.ew);
+ // signals
+ signal(cx+125,cy-125,state.phase==='NS');signal(cx-145,cy+125,state.phase==='NS');
+ signal(cx-125,cy-145,state.phase==='EW');signal(cx+145,cy+125,state.phase==='EW');
+ ctx.fillStyle='#fff';ctx.font='12px system-ui';ctx.textAlign='left';ctx.fillText('Mode: '+(state.mode==='smart'?'SMART':'FIXED'),14,22);
+}
+function car(x,y,horiz,color){ctx.save();ctx.translate(x,y);if(horiz)ctx.rotate(Math.PI/2);ctx.fillStyle='#101722';ctx.fillRect(-8,-14,16,28);ctx.fillStyle=color;ctx.fillRect(-7,-12,14,24);ctx.fillStyle='#eaf4ff';ctx.fillRect(-5,-8,10,5);ctx.restore();}
+function signal(x,y,green){ctx.fillStyle='#111923';ctx.fillRect(x-9,y-23,18,46);ctx.fillStyle=green?'#3bd68a':'#ff6b75';ctx.beginPath();ctx.arc(x,y-9,5,0,Math.PI*2);ctx.fill();ctx.fillStyle=green?'#35434e':'#35434e';ctx.beginPath();ctx.arc(x,y+9,5,0,Math.PI*2);ctx.fill();}
+function start(){if(timer)return;timer=setInterval(tick,300);}
+function pause(){clearInterval(timer);timer=null;}
+function simulate(mode,seedQueues,duration){
+ const q={...seedQueues};let t=0,cleared=0,waitSum=0,waitN=0,phase='NS',phaseT=0,greenNS=30,greenEW=30;
+ // deterministic pseudo-random stream ensures comparable traffic arrivals
+ let seed=123456;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}
+ while(t<duration){t++;if(t%2===0){const ds=['N','S','E','W'];let d=ds[Math.floor(rand()*4)];if(q[d]<25)q[d]++;}
+ if(mode==='smart'&&phaseT%8===0){let ns=q.N+q.S,ew=q.E+q.W,total=ns+ew;greenNS=Math.max(15,Math.min(45,Math.round(60*ns/(total||1))));greenEW=Math.max(15,Math.min(45,60-greenNS));}
+ phaseT++;let dur=mode==='fixed'?30:(phase==='NS'?greenNS:greenEW);
+ if(phaseT>=dur){phase=phase==='NS'?'EW':'NS';phaseT=0;}
+ for(const d of (phase==='NS'?['N','S']:['E','W']))if(q[d]>0&&rand()<.42){q[d]--;cleared++;}
+ waitSum+=q.N+q.S+q.E+q.W;waitN++;
+ }
+ return {cleared,avg:Math.round(waitSum/waitN),longest:Math.max(q.N,q.S,q.E,q.W),remaining:q.N+q.S+q.E+q.W};
+}
+$('runBtn').onclick=start;$('pauseBtn').onclick=pause;$('resetBtn').onclick=()=>{pause();reset();};$('mode').onchange=setMode;
+$('compareBtn').onclick=()=>{const startQ={N:8,S:6,E:5,W:5};const fixed=simulate('fixed',startQ,120),smart=simulate('smart',startQ,120);$('fixedClear').textContent=fixed.cleared;$('smartClear').textContent=smart.cleared;$('fixedWait').textContent=fixed.avg+'s';$('smartWait').textContent=smart.avg+'s';$('compareStatus').textContent='Completed two 120-second simulations from the same initial queues using the same repeatable arrival sequence.';$('resultSummary').textContent='Fixed: '+fixed.cleared+' cleared, average queue-wait proxy '+fixed.avg+'; Smart: '+smart.cleared+' cleared, average queue-wait proxy '+smart.avg+'. These are generated simulation results, not field measurements.';};
+reset();
+</script>
+</body>
+</html>
